@@ -13,6 +13,12 @@ function logAuth(scope: string, error: unknown) {
   console.error(`[shabetzti:${scope}]`, name);
 }
 
+function isNextInternalError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("digest" in error)) return false;
+  const digest = (error as { digest?: unknown }).digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_");
+}
+
 function authConfig(): NextAuthConfig {
   if (!runtimeEnv("AUTH_URL") && isPublishedHost()) {
     process.env.AUTH_URL = LIVE_ORIGIN;
@@ -86,7 +92,7 @@ function authConfig(): NextAuthConfig {
           return true;
         } catch (error) {
           logAuth("signIn", error);
-          return true;
+          return false;
         }
       },
       async jwt({ token, user, account, trigger, session }) {
@@ -142,16 +148,23 @@ function authConfig(): NextAuthConfig {
         }
       },
       async session({ session, token }) {
-        const memberId = token.userId ? String(token.userId) : "";
-        const googleSub = String(token.googleSub ?? "");
-        session.user.id = memberId || googleSub;
-        session.user.email = String(token.email ?? session.user.email ?? "");
-        session.user.name = String(token.name ?? session.user.name ?? "");
-        session.user.isAdmin = Boolean(token.isAdmin);
-        session.user.watcherId = token.watcherId ? String(token.watcherId) : null;
-        session.user.pending = Boolean(token.pending) || !memberId;
-        session.user.googleSub = googleSub;
-        return session;
+        try {
+          const memberId = token.userId ? String(token.userId) : "";
+          const googleSub = String(token.googleSub ?? "");
+          const user = session.user ?? { name: "", email: "", image: null };
+          user.id = memberId || googleSub;
+          user.email = String(token.email ?? user.email ?? "");
+          user.name = String(token.name ?? user.name ?? "");
+          user.isAdmin = Boolean(token.isAdmin);
+          user.watcherId = token.watcherId ? String(token.watcherId) : null;
+          user.pending = Boolean(token.pending) || !memberId;
+          user.googleSub = googleSub;
+          session.user = user;
+          return session;
+        } catch (error) {
+          logAuth("sessionCallback", error);
+          return session;
+        }
       },
     },
   };
@@ -163,6 +176,7 @@ export async function safeAuth() {
   try {
     return await auth();
   } catch (error) {
+    if (isNextInternalError(error)) throw error;
     logAuth("session", error);
     return null;
   }

@@ -54,7 +54,7 @@ function memberFrom(row: UserRow): Member {
     id: row.id,
     email: row.email,
     name: row.name,
-    isAdmin: row.is_admin,
+    isAdmin: Boolean(row.is_admin),
     watcherId: row.watcher_id,
   };
 }
