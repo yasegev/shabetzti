@@ -1,12 +1,11 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { authSecret, googleConfigured, isDevLoginEnabled } from "./lib/auth-mode";
+import { googleConfigured, isDevLoginEnabled } from "./lib/auth-mode";
 import { consumeInvite, ensureFirstAdmin, getUserByGoogleSub } from "./lib/queries";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  secret: authSecret(),
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
   providers: [

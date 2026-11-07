@@ -4,19 +4,14 @@ export function googleConfigured(): boolean {
   );
 }
 
-export function isDevLoginEnabled(): boolean {
-  if (googleConfigured()) return false;
-  if (process.env.AUTH_ALLOW_DEV_LOGIN === "true") return true;
-  if (process.env.NODE_ENV !== "production") return true;
-  return false;
+export function isPublishedHost(): boolean {
+  return Boolean(process.env.CURSOR_APP_ID || process.env.VERCEL);
 }
 
-export function authSecret(): string {
-  return (
-    process.env.AUTH_SECRET?.trim() ||
-    process.env.GOOGLE_CLIENT_SECRET?.trim() ||
-    "dev-only-shabetzti-auth-secret"
-  );
+export function isDevLoginEnabled(): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  if (isPublishedHost()) return false;
+  return process.env.AUTH_ALLOW_DEV_LOGIN === "true";
 }
 
 export const WATCHER_COLORS = [
