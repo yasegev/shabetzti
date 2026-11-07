@@ -1,7 +1,7 @@
 "use server";
 
 import { signIn, signOut } from "@/auth";
-import { googleConfigured, isDevLoginEnabled } from "@/lib/auth-mode";
+import { isDevLoginEnabled } from "@/lib/auth-mode";
 import { redirect } from "next/navigation";
 
 function rethrowRedirect(error: unknown): void {
@@ -13,20 +13,6 @@ function rethrowRedirect(error: unknown): void {
     (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
   ) {
     throw error;
-  }
-}
-
-export async function googleSignIn(formData: FormData) {
-  if (!googleConfigured()) {
-    redirect("/login?error=Configuration");
-  }
-  const redirectTo = String(formData.get("redirectTo") || "/");
-  try {
-    await signIn("google", { redirectTo });
-  } catch (error) {
-    rethrowRedirect(error);
-    console.error("[shabetzti:googleSignIn]", error instanceof Error ? error.name : "error");
-    redirect("/login?error=Configuration");
   }
 }
 

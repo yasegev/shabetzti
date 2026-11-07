@@ -1,4 +1,5 @@
-import { devSignIn, googleSignIn } from "@/app/auth-actions";
+import { devSignIn } from "@/app/auth-actions";
+import { GoogleButton } from "./google-button";
 
 const ERRORS: Record<string, string> = {
   invite: "הגישה בהזמנה בלבד. בקשו מקישור הזמנה ממנהל המשפחה.",
@@ -43,12 +44,7 @@ export function LoginForm({
         )}
         {message ? <p className="error">{message}</p> : null}
         {google ? (
-          <form action={googleSignIn}>
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <button className="soft" type="submit">
-              כניסה עם Google
-            </button>
-          </form>
+          <GoogleButton redirectTo={redirectTo} label="כניסה עם Google" />
         ) : (
           <>
             <p className="hint">כניסת Google האמיתית תופעל אחרי שיוסיפו את הסודות ב-Cursor:</p>
