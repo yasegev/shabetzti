@@ -105,7 +105,8 @@ export async function POST(request: Request) {
         return Response.json({ error: "unknown-action" }, { status: 400 });
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : "error";
-    return Response.json({ error: message }, { status: 400 });
+    const code = error instanceof Error ? error.message : "error";
+    const safe = code === "name-required" || code === "taken" || code === "invalid" ? code : "error";
+    return Response.json({ error: safe }, { status: 400 });
   }
 }

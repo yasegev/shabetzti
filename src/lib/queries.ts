@@ -90,6 +90,10 @@ export async function createUser(input: {
   return memberFrom(rows[0]);
 }
 
+export function ownerAdminEmail(): string {
+  return (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+}
+
 export async function ensureFirstAdmin(input: {
   googleSub: string;
   email: string;
@@ -97,9 +101,19 @@ export async function ensureFirstAdmin(input: {
 }): Promise<Member | null> {
   const existing = await getUserByGoogleSub(input.googleSub);
   if (existing) return existing;
-  if ((await countUsers()) > 0) return null;
+  const allowed = ownerAdminEmail();
+  const email = input.email.trim().toLowerCase();
+  if (!allowed || email !== allowed) return null;
+  const id = crypto.randomUUID();
   try {
-    return await createUser({ ...input, isAdmin: true });
+    const rows = await sql<UserRow>(
+      `insert into users (id, google_sub, email, name, is_admin)
+       select $1, $2, $3, $4, true
+       where not exists (select 1 from users)
+       returning *`,
+      [id, input.googleSub, email, input.name],
+    );
+    return rows[0] ? memberFrom(rows[0]) : getUserByGoogleSub(input.googleSub);
   } catch {
     return getUserByGoogleSub(input.googleSub);
   }
@@ -249,6 +263,9 @@ export async function assignSlot(
   templateId: string,
   watcherId: string | null,
 ): Promise<void> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart) || dayOfWeek < 0 || dayOfWeek > 6) {
+    throw new Error("invalid");
+  }
   if (watcherId == null) {
     await sql(
       "delete from assignments where week_start = $1::date and day_of_week = $2 and template_id = $3",
@@ -266,20 +283,31 @@ export async function assignSlot(
 }
 
 export async function claimWatcher(userId: string, watcherId: string | null): Promise<void> {
-  if (watcherId) {
-    await sql("update users set watcher_id = null where watcher_id = $1", [watcherId]);
+  if (watcherId == null) {
+    await sql("update users set watcher_id = null where id = $1", [userId]);
+    return;
   }
-  await sql("update users set watcher_id = $2 where id = $1", [userId, watcherId]);
+  const rows = await sql<{ id: string }>(
+    `update users set watcher_id = $2
+     where id = $1
+       and not exists (
+         select 1 from users other
+         where other.watcher_id = $2 and other.id <> $1
+       )
+     returning id`,
+    [userId, watcherId],
+  );
+  if (!rows[0]) throw new Error("taken");
 }
 
 export async function createInvite(createdBy: string, watcherId: string | null): Promise<Invite> {
   const id = crypto.randomUUID();
   const token = randomBytes(24).toString("base64url");
   const rows = await sql<InviteRow>(
-    `insert into invites (id, token, created_by, watcher_id)
-     values ($1, $2, $3, $4)
+    `insert into invites (id, token, created_by, watcher_id, expires_at)
+     values ($1, $2, $3, $4, now() + ($5::int * interval '1 day'))
      returning id, token, watcher_id, used_at, created_at, expires_at`,
-    [id, token, createdBy, watcherId],
+    [id, token, createdBy, watcherId, 7],
   );
   const r = rows[0];
   return {
@@ -318,36 +346,42 @@ export async function consumeInvite(token: string, member: {
   email: string;
   name: string;
 }): Promise<{ ok: true; user: Member } | { ok: false; reason: string }> {
-  const invite = await getInviteByToken(token);
-  if (!invite) return { ok: false, reason: "invalid" };
-  if (invite.usedAt) return { ok: false, reason: "used" };
-  if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) {
+  const claimed = await sql<InviteRow & { used_by: string | null }>(
+    `update invites
+     set used_at = now()
+     where token = $1
+       and used_at is null
+       and expires_at is not null
+       and expires_at > now()
+     returning id, token, watcher_id, used_at, created_at, expires_at, used_by`,
+    [token],
+  );
+  if (!claimed[0]) {
+    const invite = await getInviteByToken(token);
+    if (!invite) return { ok: false, reason: "invalid" };
+    if (invite.usedAt) return { ok: false, reason: "used" };
     return { ok: false, reason: "expired" };
   }
-  const existing = await getUserByGoogleSub(member.googleSub);
-  if (existing) {
-    await sql(
-      "update invites set used_by = $2, used_at = now() where id = $1 and used_at is null",
-      [invite.id, existing.id],
-    );
-    if (invite.watcherId && !existing.watcherId) {
-      await claimWatcher(existing.id, invite.watcherId);
-      const updated = await getUserById(existing.id);
-      return { ok: true, user: updated ?? existing };
-    }
-    return { ok: true, user: existing };
+  const invite = claimed[0];
+  let user = await getUserByGoogleSub(member.googleSub);
+  if (!user) {
+    user = await createUser({
+      googleSub: member.googleSub,
+      email: member.email,
+      name: member.name,
+      isAdmin: false,
+      watcherId: invite.watcher_id,
+    });
   }
-  const user = await createUser({
-    googleSub: member.googleSub,
-    email: member.email,
-    name: member.name,
-    isAdmin: false,
-    watcherId: invite.watcherId,
-  });
-  await sql(
-    "update invites set used_by = $2, used_at = now() where id = $1 and used_at is null",
-    [invite.id, user.id],
-  );
+  await sql("update invites set used_by = $2 where id = $1", [invite.id, user.id]);
+  if (invite.watcher_id && !user.watcherId) {
+    try {
+      await claimWatcher(user.id, invite.watcher_id);
+    } catch {
+      /* watcher already linked to someone else */
+    }
+    user = (await getUserById(user.id)) ?? user;
+  }
   return { ok: true, user };
 }
 

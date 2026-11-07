@@ -39,7 +39,13 @@ export function useAppState(week: string | null) {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setError(data.error === "forbidden" ? "אין הרשאה" : data.error || "שגיאה");
+        const messages: Record<string, string> = {
+          forbidden: "אין הרשאה",
+          taken: "התורן כבר משויך למישהו אחר",
+          "name-required": "חסר שם",
+          invalid: "ערך לא תקין",
+        };
+        setError(messages[data.error ?? ""] || "שגיאה");
         return null;
       }
       await reload();
