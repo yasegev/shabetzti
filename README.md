@@ -6,7 +6,7 @@ Live: https://shabetzti.apps.grok.bot
 
 ## איך הזמנות עובדות
 
-1. רק כתובת Google שנשמרת כ-`ADMIN_EMAIL` יכולה להיות המנהל הראשון.
+1. כתובות Google ב-`ADMIN_EMAIL` (אחת או יותר, מופרדות בפסיק) הופכות למנהלים בכניסה. מנהל יכול אחר כך להזמין בן משפחה ולהפוך אותו למנהל.
 2. המנהל פותח **ניהול** → **יצירת קישור הזמנה** (אפשר לשייך מראש לתורן). הקישור פג אחרי 7 ימים ומשמש פעם אחת.
 3. מעתיקים את הקישור (`/invite/...`) ושולחים לבן משפחה.
 4. בן המשפחה פותח את הקישור, נכנס עם Google, ומצטרף. בלי הזמנה תקפה אין כניסה ללוח.
@@ -23,4 +23,4 @@ Live: https://shabetzti.apps.grok.bot
 3. Authorized JavaScript origins: `https://shabetzti.apps.grok.bot`
 4. Authorized redirect URIs: `https://shabetzti.apps.grok.bot/api/auth/callback/google`
 
-סודות בטופס של Cursor (לא בצ'אט): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `ADMIN_EMAIL` (כתובת Google של המנהל).
+סודות בטופס של Cursor (לא בצ'אט): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `ADMIN_EMAIL` (כתובת Google אחת או יותר, מופרדות בפסיק).

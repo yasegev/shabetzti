@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { sql } from "./db";
 import { WATCHER_COLORS } from "./auth-mode";
+import { runtimeEnv } from "./env";
 import type { Assignment, Invite, Member, Template, Watcher } from "./types";
 
 type UserRow = {
@@ -90,33 +91,72 @@ export async function createUser(input: {
   return memberFrom(rows[0]);
 }
 
-export function ownerAdminEmail(): string {
-  return (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+export function ownerAdminEmails(): string[] {
+  return runtimeEnv("ADMIN_EMAIL")
+    .split(/[,;]+/)
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => value.includes("@"));
 }
 
-export async function ensureFirstAdmin(input: {
+export function isAllowlistedAdminEmail(email: string): boolean {
+  return ownerAdminEmails().includes(email.trim().toLowerCase());
+}
+
+/** Create or promote a member if their Google email is on ADMIN_EMAIL (comma-separated). */
+export async function ensureAllowlistedAdmin(input: {
   googleSub: string;
   email: string;
   name: string;
 }): Promise<Member | null> {
-  const existing = await getUserByGoogleSub(input.googleSub);
-  if (existing) return existing;
-  const allowed = ownerAdminEmail();
   const email = input.email.trim().toLowerCase();
-  if (!allowed || email !== allowed) return null;
-  const id = crypto.randomUUID();
-  try {
+  const existing = await getUserByGoogleSub(input.googleSub);
+  if (!isAllowlistedAdminEmail(email)) return existing;
+  if (existing) {
+    if (existing.isAdmin && existing.email === email && existing.name === input.name) {
+      return existing;
+    }
     const rows = await sql<UserRow>(
-      `insert into users (id, google_sub, email, name, is_admin)
-       select $1, $2, $3, $4, true
-       where not exists (select 1 from users)
+      `update users
+       set is_admin = true, email = $2, name = $3
+       where id = $1
        returning *`,
-      [id, input.googleSub, email, input.name],
+      [existing.id, email, input.name],
     );
-    return rows[0] ? memberFrom(rows[0]) : getUserByGoogleSub(input.googleSub);
-  } catch {
-    return getUserByGoogleSub(input.googleSub);
+    return rows[0] ? memberFrom(rows[0]) : existing;
   }
+  try {
+    return await createUser({
+      googleSub: input.googleSub,
+      email,
+      name: input.name,
+      isAdmin: true,
+    });
+  } catch {
+    const raced = await getUserByGoogleSub(input.googleSub);
+    if (!raced) return null;
+    if (raced.isAdmin) return raced;
+    const rows = await sql<UserRow>(
+      `update users set is_admin = true, email = $2, name = $3 where id = $1 returning *`,
+      [raced.id, email, input.name],
+    );
+    return rows[0] ? memberFrom(rows[0]) : raced;
+  }
+}
+
+export async function countAdmins(): Promise<number> {
+  const rows = await sql<{ n: string | number }>(
+    "select count(*)::int as n from users where is_admin = true",
+  );
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function setMemberAdmin(userId: string, isAdmin: boolean): Promise<void> {
+  const target = await getUserById(userId);
+  if (!target) throw new Error("invalid");
+  if (!isAdmin && target.isAdmin && (await countAdmins()) <= 1) {
+    throw new Error("last-admin");
+  }
+  await sql("update users set is_admin = $2 where id = $1", [userId, isAdmin]);
 }
 
 export async function listWatchers(): Promise<Watcher[]> {

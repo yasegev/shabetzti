@@ -31,7 +31,9 @@ export function LoginForm({
         <h1>שבצתי</h1>
         <p className="hint">לוח משמרות משפחתי. כניסה עם Google בלבד, ורק בהזמנה.</p>
         {firstUser ? (
-          <p className="banner">רק כתובת המנהל שנקבעה ב-Cursor יכולה לפתוח את המשפחה.</p>
+          <p className="banner">
+            כתובות המנהלים שנקבעו ב-Cursor יכולות לפתוח את המשפחה. אחר כך אפשר להזמין ולהפוך בן משפחה למנהל.
+          </p>
         ) : invite ? (
           <p className="banner">הוזמנתם להצטרף למשפחה. היכנסו עם Google כדי לאשר.</p>
         ) : pending ? (

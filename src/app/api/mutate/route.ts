@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { safeAuth } from "@/auth";
 import {
   addTemplate,
   addWatcher,
@@ -6,6 +6,7 @@ import {
   claimWatcher,
   createInvite,
   getUserByGoogleSub,
+  setMemberAdmin,
   removeTemplate,
   removeWatcher,
   renameWatcher,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type Action =
   | { type: "addWatcher"; name: string }
@@ -25,7 +27,8 @@ type Action =
   | { type: "removeTemplate"; id: string }
   | { type: "assignSlot"; weekStart: string; dayOfWeek: number; templateId: string; watcherId: string | null }
   | { type: "createInvite"; watcherId?: string | null }
-  | { type: "revokeInvite"; id: string };
+  | { type: "revokeInvite"; id: string }
+  | { type: "setMemberAdmin"; userId: string; isAdmin: boolean };
 
 function sameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
@@ -45,7 +48,7 @@ export async function POST(request: Request) {
   if (!sameOrigin(request)) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
-  const session = await auth();
+  const session = await safeAuth();
   if (!session?.user?.googleSub) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
@@ -101,12 +104,19 @@ export async function POST(request: Request) {
         if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
         await revokeInvite(body.id);
         return Response.json({ ok: true });
+      case "setMemberAdmin":
+        if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
+        await setMemberAdmin(body.userId, Boolean(body.isAdmin));
+        return Response.json({ ok: true });
       default:
         return Response.json({ error: "unknown-action" }, { status: 400 });
     }
   } catch (error) {
     const code = error instanceof Error ? error.message : "error";
-    const safe = code === "name-required" || code === "taken" || code === "invalid" ? code : "error";
+    const safe =
+      code === "name-required" || code === "taken" || code === "invalid" || code === "last-admin"
+        ? code
+        : "error";
     return Response.json({ error: safe }, { status: 400 });
   }
 }

@@ -1,17 +1,17 @@
+import { runtimeEnv } from "./env";
+
 export function googleConfigured(): boolean {
-  return Boolean(
-    process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim(),
-  );
+  return Boolean(runtimeEnv("GOOGLE_CLIENT_ID") && runtimeEnv("GOOGLE_CLIENT_SECRET"));
 }
 
 export function isPublishedHost(): boolean {
-  return Boolean(process.env.CURSOR_APP_ID || process.env.VERCEL);
+  return Boolean(runtimeEnv("CURSOR_APP_ID") || runtimeEnv("VERCEL"));
 }
 
 export function isDevLoginEnabled(): boolean {
   if (process.env.NODE_ENV === "production") return false;
   if (isPublishedHost()) return false;
-  return process.env.AUTH_ALLOW_DEV_LOGIN === "true";
+  return runtimeEnv("AUTH_ALLOW_DEV_LOGIN") === "true";
 }
 
 export const WATCHER_COLORS = [

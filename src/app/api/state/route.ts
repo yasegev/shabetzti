@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { safeAuth } from "@/auth";
 import { googleConfigured, isDevLoginEnabled } from "@/lib/auth-mode";
 import {
   getUserByGoogleSub,
@@ -11,9 +11,10 @@ import {
 import { parseWeekStart } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const session = await auth();
+  const session = await safeAuth();
   if (!session?.user?.googleSub) {
     return Response.json(
       { error: "unauthorized", pending: Boolean(session?.user?.pending) },

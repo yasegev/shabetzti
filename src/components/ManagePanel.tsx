@@ -181,6 +181,41 @@ export function ManagePanel() {
 
         {state.me.isAdmin ? (
           <section className="card">
+            <h2 className="section-title">מנהלים ובני משפחה</h2>
+            <p className="hint">
+              אפשר שיהיו כמה מנהלים. הזמינו בן משפחה, ואחרי שהוא מצטרף לחצו «הפוך למנהל». אפשר גם להוסיף כתובת ל-ADMIN_EMAIL ב-Cursor.
+            </p>
+            {state.members.map((member) => (
+              <div className="row" key={member.id}>
+                <div className="grow">
+                  <strong>{member.name || member.email}</strong>
+                  {member.email ? <div className="hint">{member.email}</div> : null}
+                </div>
+                {member.isAdmin ? <span className="badge">מנהל</span> : null}
+                {member.id === state.me.id ? (
+                  <span className="hint">אני</span>
+                ) : (
+                  <button
+                    className={member.isAdmin ? "ghost" : "primary"}
+                    type="button"
+                    onClick={() =>
+                      void mutate({
+                        type: "setMemberAdmin",
+                        userId: member.id,
+                        isAdmin: !member.isAdmin,
+                      })
+                    }
+                  >
+                    {member.isAdmin ? "הסר הרשאת מנהל" : "הפוך למנהל"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </section>
+        ) : null}
+
+        {state.me.isAdmin ? (
+          <section className="card">
             <h2 className="section-title">הזמנות</h2>
             <p className="hint">
               אין הרשמה פתוחה. העתיקו קישור הזמנה ושלחו לבן משפחה. הוא נכנס עם Google ומצטרף למשפחה.

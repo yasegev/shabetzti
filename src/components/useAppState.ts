@@ -44,6 +44,7 @@ export function useAppState(week: string | null) {
           taken: "התורן כבר משויך למישהו אחר",
           "name-required": "חסר שם",
           invalid: "ערך לא תקין",
+          "last-admin": "חייב להישאר מנהל אחד לפחות",
         };
         setError(messages[data.error ?? ""] || "שגיאה");
         return null;

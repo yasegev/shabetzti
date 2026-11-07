@@ -1,10 +1,11 @@
-import { auth } from "@/auth";
+import { safeAuth } from "@/auth";
 import { LoginForm } from "@/app/login/ui";
 import { googleConfigured, isDevLoginEnabled } from "@/lib/auth-mode";
 import { consumeInvite, getInviteByToken } from "@/lib/queries";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export default async function InvitePage({
   params,
@@ -12,8 +13,13 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const invite = await getInviteByToken(token);
-  const session = await auth();
+  let invite: Awaited<ReturnType<typeof getInviteByToken>> = null;
+  try {
+    invite = await getInviteByToken(token);
+  } catch {
+    invite = null;
+  }
+  const session = await safeAuth();
 
   if (!invite) {
     return (
@@ -43,13 +49,17 @@ export default async function InvitePage({
   }
 
   if (session?.user?.googleSub) {
-    const joined = await consumeInvite(token, {
-      googleSub: session.user.googleSub,
-      email: session.user.email,
-      name: session.user.name,
-    });
-    if (joined.ok) {
-      redirect("/");
+    try {
+      const joined = await consumeInvite(token, {
+        googleSub: session.user.googleSub,
+        email: session.user.email,
+        name: session.user.name,
+      });
+      if (joined.ok) {
+        redirect("/");
+      }
+    } catch {
+      /* show the login form so they can retry */
     }
   }
 
