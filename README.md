@@ -2,6 +2,8 @@
 
 לוח משמרות משפחתי בעברית (RTL), לפי שעון ישראל (`Asia/Jerusalem`). כניסה עם Google בלבד, ורק בהזמנה.
 
+Live: https://shabetzti.apps.grok.bot
+
 ## איך הזמנות עובדות
 
 1. המשתמש הראשון שנכנס עם Google הופך למנהל.
@@ -12,27 +14,21 @@
 
 אין הרשמה פתוחה.
 
-## Google Cloud — מה ליצור
+## Google Cloud — מה ליצור (ייצור בלבד)
 
 ב-[Google Cloud Console](https://console.cloud.google.com/apis/credentials):
 
-1. פרויקט (או בחירת פרויקט קיים) → **APIs & Services** → **OAuth consent screen**.
-   סוג: External. שם האפליקציה: שבצתי. מוסיפים את המיילים של בני המשפחה כ-Test users כל עוד האפליקציה ב-Testing.
-2. **Credentials** → **Create credentials** → **OAuth client ID**.
-3. Application type: **Web application**.
-4. Authorized JavaScript origins:
-   - `http://localhost:3000`
-   - `http://127.0.0.1:3000`
-   - כתובת האפליקציה המפורסמת ב-Cursor (אחרי Publish, visibility: **public**)
-5. Authorized redirect URIs:
-   - `http://localhost:3000/api/auth/callback/google`
-   - `http://127.0.0.1:3000/api/auth/callback/google`
-   - `https://<published-host>/api/auth/callback/google`
+1. **OAuth consent screen** — External. שם האפליקציה: שבצתי. כל עוד האפליקציה ב-Testing, מוסיפים את המיילים של בני המשפחה כ-Test users.
+2. **Create credentials** → **OAuth client ID** → **Web application**.
+3. Authorized JavaScript origins — רק:
+   - `https://shabetzti.apps.grok.bot`
+4. Authorized redirect URIs — רק:
+   - `https://shabetzti.apps.grok.bot/api/auth/callback/google`
 
-את Client ID ו-Client Secret **לא** שולחים בצ'אט. מוסיפים ב-Cursor (Secrets / הטופס המאובטח) את השמות:
+את Client ID, Client Secret ו-AUTH_SECRET **לא** שולחים בצ'אט. מוסיפים בטופס הסודות של Cursor:
 
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `AUTH_SECRET` (מחרוזת אקראית ארוכה להצפנת הסשן)
+- `AUTH_SECRET` (מחרוזת אקראית ארוכה)
 
-בפרסום בוחרים **public** כדי שהמשפחה תיכנס מהטלפון בלי חשבון Cursor. האפליקציה עצמה נועלת את הגישה ב-Google ובהזמנה.
+ב-Publish Settings בוחרים **public** כדי שטלפונים של המשפחה (ו-Google callback) יגיעו לאפליקציה בלי חשבון Cursor.

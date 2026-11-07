@@ -1,8 +1,13 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { googleConfigured, isDevLoginEnabled } from "./lib/auth-mode";
+import { googleConfigured, isDevLoginEnabled, isPublishedHost } from "./lib/auth-mode";
 import { consumeInvite, ensureFirstAdmin, getUserByGoogleSub } from "./lib/queries";
+
+const LIVE_ORIGIN = "https://shabetzti.apps.grok.bot";
+if (!process.env.AUTH_URL && isPublishedHost()) {
+  process.env.AUTH_URL = LIVE_ORIGIN;
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
