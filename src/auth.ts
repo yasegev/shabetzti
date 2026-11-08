@@ -5,6 +5,7 @@ import Google from "next-auth/providers/google";
 import { googleConfigured, isDevLoginEnabled, isPublishedHost, LIVE_ORIGIN } from "./lib/auth-mode";
 import { runtimeEnv } from "./lib/env";
 import { consumeInvite, ensureAllowlistedAdmin } from "./lib/queries";
+// consumeInvite is used when a pending Google user opens /invite/[token]/join.
 
 function logAuth(scope: string, error: unknown) {
   const name = error instanceof Error ? error.name : "error";
@@ -29,12 +30,27 @@ function authConfig(): NextAuthConfig {
     secret: runtimeEnv("AUTH_SECRET") || undefined,
     session: { strategy: "jwt" },
     pages: { signIn: "/login", error: "/login" },
+    cookies: {
+      sessionToken: {
+        options: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: isPublishedHost(),
+        },
+      },
+    },
     providers: [
       ...(googleId && googleSecret
         ? [
             Google({
               clientId: googleId,
               clientSecret: googleSecret,
+              authorization: {
+                params: {
+                  prompt: "select_account",
+                },
+              },
               profile(profile) {
                 return {
                   id: String(profile.sub),
@@ -74,7 +90,7 @@ function authConfig(): NextAuthConfig {
         : []),
     ],
     callbacks: {
-      async signIn({ user, account, credentials }) {
+      async signIn({ user, account }) {
         try {
           const googleSub =
             account?.provider === "google" ? account.providerAccountId : user.id;
@@ -83,11 +99,6 @@ function authConfig(): NextAuthConfig {
           const name = (user.name ?? email.split("@")[0] ?? "משתמש").trim();
           const member = await ensureAllowlistedAdmin({ googleSub, email, name });
           if (member) return true;
-          const inviteToken = String(credentials?.invite ?? "").trim();
-          if (inviteToken) {
-            const joined = await consumeInvite(inviteToken, { googleSub, email, name });
-            if (!joined.ok) return "/login?error=invite";
-          }
           return true;
         } catch (error) {
           logAuth("signIn", error);

@@ -414,6 +414,10 @@ export async function consumeInvite(token: string, member: {
   email: string;
   name: string;
 }): Promise<{ ok: true; user: Member } | { ok: false; reason: string }> {
+  const existing = await getUserByGoogleSub(member.googleSub);
+  if (existing) {
+    return { ok: false, reason: "already-member" };
+  }
   const claimed = await sql<InviteRow & { used_by: string | null }>(
     `update invites
      set used_at = now()

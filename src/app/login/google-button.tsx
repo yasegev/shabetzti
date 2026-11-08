@@ -12,7 +12,7 @@ export function GoogleButton({
   const [csrf, setCsrf] = useState("");
 
   useEffect(() => {
-    void fetch("/api/auth/csrf", { credentials: "same-origin" })
+    void fetch("/api/auth/csrf", { credentials: "same-origin", cache: "no-store" })
       .then((res) => res.json())
       .then((data: { csrfToken?: string }) => setCsrf(data.csrfToken ?? ""))
       .catch(() => setCsrf(""));

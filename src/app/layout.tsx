@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Assistant } from "next/font/google";
+import { connection } from "next/server";
 import "./globals.css";
 
 const assistant = Assistant({
@@ -17,7 +18,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await connection();
   return (
     <html lang="he" dir="rtl">
       <body className={assistant.className}>{children}</body>

@@ -5,9 +5,15 @@ import pg from "pg";
 import { runtimeEnv } from "./env";
 import { BUNDLED_MIGRATIONS } from "./schema-sql";
 
-let pool: pg.Pool | undefined;
-let local: Promise<LocalQuery> | undefined;
-let postgresReady: Promise<void> | undefined;
+type GlobalDb = {
+  pool?: pg.Pool;
+  local?: Promise<LocalQuery>;
+  postgresReady?: Promise<void>;
+};
+
+const globalDb = globalThis as typeof globalThis & { __shabetztiDb?: GlobalDb };
+globalDb.__shabetztiDb ??= {};
+const dbState = globalDb.__shabetztiDb;
 
 type LocalQuery = {
   query: <T>(text: string, params?: unknown[]) => Promise<{ rows: T[] }>;
@@ -54,32 +60,32 @@ export async function sql<T = Record<string, unknown>>(
 ): Promise<T[]> {
   const url = databaseUrl();
   if (url !== "") {
-    pool ??= new pg.Pool({
+    dbState.pool ??= new pg.Pool({
       connectionString: url,
       max: 5,
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 8_000,
     });
-    postgresReady ??= applyPostgresMigrations().catch((error: unknown) => {
-      postgresReady = undefined;
+    dbState.postgresReady ??= applyPostgresMigrations().catch((error: unknown) => {
+      dbState.postgresReady = undefined;
       throw error;
     });
     try {
-      await withTimeout(postgresReady, 15_000, "database-timeout");
+      await withTimeout(dbState.postgresReady, 15_000, "database-timeout");
     } catch (error) {
-      postgresReady = undefined;
+      dbState.postgresReady = undefined;
       throw error;
     }
-    return (await pool.query(text, params)).rows as T[];
+    return (await dbState.pool.query(text, params)).rows as T[];
   }
   if (publishedHost()) {
     throw new Error("database-unavailable");
   }
-  local ??= startLocal().catch((error: unknown) => {
-    local = undefined;
+  dbState.local ??= startLocal().catch((error: unknown) => {
+    dbState.local = undefined;
     throw error;
   });
-  return (await (await local).query<T>(text, params)).rows;
+  return (await (await dbState.local).query<T>(text, params)).rows;
 }
 
 async function applyPostgresMigrations(): Promise<void> {
