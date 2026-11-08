@@ -3,7 +3,7 @@ import { sql } from "./db";
 import { WATCHER_COLORS } from "./auth-mode";
 import { runtimeEnv } from "./env";
 import { daysToMask, normalizeDays } from "./week";
-import type { Assignment, Invite, Member, Template, Watcher } from "./types";
+import { NOTE_MAX_LENGTH, type Assignment, type DayNote, type Invite, type Member, type Template, type Watcher } from "./types";
 
 type UserRow = {
   id: string;
@@ -29,6 +29,10 @@ type AssignmentRow = {
   day_of_week: number;
   template_id: string;
   watcher_id: string;
+};
+type DayNoteRow = {
+  day_of_week: number;
+  body: string;
 };
 type InviteRow = {
   id: string;
@@ -193,6 +197,47 @@ export async function listTemplates(): Promise<Template[]> {
 export async function getTemplate(id: string): Promise<Template | null> {
   const rows = await sql<TemplateRow>("select * from shift_templates where id = $1", [id]);
   return rows[0] ? templateFrom(rows[0]) : null;
+}
+
+function normalizeNote(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+    .trim();
+}
+
+export async function listDayNotes(weekStart: string): Promise<DayNote[]> {
+  const rows = await sql<DayNoteRow>(
+    "select day_of_week, body from day_notes where week_start = $1::date order by day_of_week",
+    [weekStart],
+  );
+  return rows.map((row) => ({
+    dayOfWeek: Number(row.day_of_week),
+    body: row.body,
+  }));
+}
+
+export async function upsertDayNote(weekStart: string, dayOfWeek: number, body: unknown): Promise<void> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart) || dayOfWeek < 0 || dayOfWeek > 6) {
+    throw new Error("invalid");
+  }
+  const year = Number(weekStart.slice(0, 4));
+  if (year < 2024 || year > 2032) {
+    throw new Error("invalid");
+  }
+  const text = normalizeNote(body);
+  if (text.length > NOTE_MAX_LENGTH) throw new Error("note-too-long");
+  if (!text) {
+    await sql("delete from day_notes where week_start = $1::date and day_of_week = $2", [weekStart, dayOfWeek]);
+    return;
+  }
+  await sql(
+    `insert into day_notes (id, week_start, day_of_week, body, updated_at)
+     values ($1, $2::date, $3, $4, now())
+     on conflict (week_start, day_of_week)
+     do update set body = excluded.body, updated_at = now()`,
+    [crypto.randomUUID(), weekStart, dayOfWeek, text],
+  );
 }
 
 export async function listAssignments(weekStart: string): Promise<Assignment[]> {

@@ -10,6 +10,7 @@ import {
   getUserByGoogleSub,
   isAllowlistedAdminEmail,
   setMemberAdmin,
+  upsertDayNote,
   removeTemplate,
   removeWatcher,
   renameWatcher,
@@ -29,6 +30,7 @@ type Action =
   | { type: "addTemplate"; name: string; startTime: string; endTime: string; days?: number[] }
   | { type: "removeTemplate"; id: string }
   | { type: "assignSlot"; weekStart: string; dayOfWeek: number; templateId: string; watcherId: string | null }
+  | { type: "setDayNote"; weekStart: string; dayOfWeek: number; body: string }
   | { type: "createInvite"; watcherId?: string | null }
   | { type: "revokeInvite"; id: string }
   | { type: "setMemberAdmin"; userId: string; isAdmin: boolean };
@@ -132,6 +134,9 @@ export async function POST(request: Request) {
       case "assignSlot":
         await assignSlot(body.weekStart, body.dayOfWeek, body.templateId, body.watcherId);
         return Response.json({ ok: true });
+      case "setDayNote":
+        await upsertDayNote(body.weekStart, body.dayOfWeek, body.body);
+        return Response.json({ ok: true });
       case "createInvite":
         if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
         return Response.json({
@@ -151,7 +156,11 @@ export async function POST(request: Request) {
   } catch (error) {
     const code = error instanceof Error ? error.message : "error";
     const safe =
-      code === "name-required" || code === "taken" || code === "invalid" || code === "last-admin"
+      code === "name-required" ||
+      code === "taken" ||
+      code === "invalid" ||
+      code === "last-admin" ||
+      code === "note-too-long"
         ? code
         : "error";
     return Response.json({ error: safe }, { status: 400 });

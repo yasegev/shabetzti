@@ -46,6 +46,7 @@ export function useAppState(week: string | null) {
           "name-required": "חסר שם",
           invalid: "ערך לא תקין",
           "last-admin": "חייב להישאר מנהל אחד לפחות",
+          "note-too-long": "ההערה ארוכה מדי",
         };
         setError(messages[data.error ?? ""] || "שגיאה");
         return null;

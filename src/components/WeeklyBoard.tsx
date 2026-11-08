@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Chrome } from "./Chrome";
 import { useAppState } from "./useAppState";
 import {
@@ -12,7 +12,7 @@ import {
   slotCount,
   templatesForDay,
 } from "@/lib/week";
-import type { Template } from "@/lib/types";
+import { NOTE_MAX_LENGTH, type Template } from "@/lib/types";
 
 export function WeeklyBoard({ initialWeek }: { initialWeek: string }) {
   const [week, setWeek] = useState(initialWeek);
@@ -86,10 +86,14 @@ export function WeeklyBoard({ initialWeek }: { initialWeek: string }) {
               today={isToday(week, dayOfWeek)}
               templates={templatesForDay(state.templates, dayOfWeek)}
               watchers={state.watchers}
+              note={(state.notes ?? []).find((item) => item.dayOfWeek === dayOfWeek)?.body ?? ""}
               byKey={byKey}
               open={open}
               setOpen={setOpen}
               onAssign={(templateId, watcherId) => assign(dayOfWeek, templateId, watcherId)}
+              onSaveNote={(body) => {
+                void mutate({ type: "setDayNote", weekStart: week, dayOfWeek, body });
+              }}
             />
           ))}
         </div>
@@ -105,10 +109,12 @@ function DayCard({
   today,
   templates,
   watchers,
+  note,
   byKey,
   open,
   setOpen,
   onAssign,
+  onSaveNote,
 }: {
   day: string;
   dayOfWeek: number;
@@ -116,10 +122,12 @@ function DayCard({
   today: boolean;
   templates: Template[];
   watchers: { id: string; name: string; color: string }[];
+  note: string;
   byKey: Map<string, string>;
   open: string | null;
   setOpen: (id: string | null) => void;
   onAssign: (templateId: string, watcherId: string | null) => void;
+  onSaveNote: (body: string) => void;
 }) {
   return (
     <article className={`day-card${today ? " is-today" : ""}`}>
@@ -155,7 +163,90 @@ function DayCard({
           })
         )}
       </div>
+      <DayNoteField dayOfWeek={dayOfWeek} body={note} onSave={onSaveNote} />
     </article>
+  );
+}
+
+function DayNoteField({
+  dayOfWeek,
+  body,
+  onSave,
+}: {
+  dayOfWeek: number;
+  body: string;
+  onSave: (text: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(body);
+
+  useEffect(() => {
+    if (!editing) setDraft(body);
+  }, [body, editing]);
+
+  if (!editing) {
+    return (
+      <div className="day-note">
+        {body ? <p className="day-note-text">{body}</p> : <p className="day-note-empty">אין הערה ליום הזה</p>}
+        <button className="ghost" type="button" onClick={() => setEditing(true)}>
+          {body ? "עריכת הערה" : "הוספת הערה"}
+        </button>
+      </div>
+    );
+  }
+
+  const remaining = NOTE_MAX_LENGTH - draft.length;
+  return (
+    <form
+      className="day-note is-editing"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave(draft);
+        setEditing(false);
+      }}
+    >
+      <label className="day-note-label" htmlFor={`day-note-${dayOfWeek}`}>
+        הערה ליום, למשל תור למרפאה או טיפול
+      </label>
+      <textarea
+        id={`day-note-${dayOfWeek}`}
+        value={draft}
+        maxLength={NOTE_MAX_LENGTH}
+        rows={3}
+        dir="rtl"
+        placeholder="למשל תור למרפאה בשעה 10:00"
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      <div className="day-note-actions">
+        <button className="primary" type="submit">
+          שמירה
+        </button>
+        <button
+          className="ghost"
+          type="button"
+          onClick={() => {
+            setDraft(body);
+            setEditing(false);
+          }}
+        >
+          ביטול
+        </button>
+        {body ? (
+          <button
+            className="ghost"
+            type="button"
+            onClick={() => {
+              onSave("");
+              setDraft("");
+              setEditing(false);
+            }}
+          >
+            מחיקה
+          </button>
+        ) : null}
+        <span className="hint">{remaining}</span>
+      </div>
+    </form>
   );
 }
 

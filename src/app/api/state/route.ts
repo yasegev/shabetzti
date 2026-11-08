@@ -5,6 +5,7 @@ import {
   getUserByGoogleSub,
   isAllowlistedAdminEmail,
   listAssignments,
+  listDayNotes,
   listInvites,
   listMembers,
   listTemplates,
@@ -48,10 +49,11 @@ export async function GET(request: Request) {
   me = admin ? { ...me, isAdmin: true } : me;
   const url = new URL(request.url);
   const weekStart = parseWeekStart(url.searchParams.get("week"));
-  const [watchers, templates, assignments, invites, members] = await Promise.all([
+  const [watchers, templates, assignments, notes, invites, members] = await Promise.all([
     listWatchers(),
     listTemplates(),
     listAssignments(weekStart),
+    listDayNotes(weekStart),
     admin ? listInvites() : Promise.resolve([]),
     admin ? listMembers() : Promise.resolve([]),
   ]);
@@ -61,6 +63,7 @@ export async function GET(request: Request) {
       watchers,
       templates,
       assignments,
+      notes,
       invites,
       members,
       weekStart,

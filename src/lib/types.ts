@@ -22,6 +22,13 @@ export type Assignment = {
   watcherId: string;
 };
 
+export type DayNote = {
+  dayOfWeek: number;
+  body: string;
+};
+
+export const NOTE_MAX_LENGTH = 400;
+
 export type Invite = {
   id: string;
   token: string;
@@ -44,6 +51,7 @@ export type AppState = {
   watchers: Watcher[];
   templates: Template[];
   assignments: Assignment[];
+  notes: DayNote[];
   invites: Invite[];
   members: Member[];
   weekStart: string;
