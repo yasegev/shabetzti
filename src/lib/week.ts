@@ -75,6 +75,43 @@ export const DAY_NAMES = [
   "יום שבת",
 ];
 
+export const DAY_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+export const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+export const WEEKDAY_DAYS = [0, 1, 2, 3, 4];
+export const WEEKEND_DAYS = [5, 6];
+
+export function normalizeDays(value: unknown): number[] {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "number"
+      ? ALL_DAYS.filter((day) => (value & (1 << day)) !== 0)
+      : ALL_DAYS;
+  const days = [...new Set(raw.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))];
+  days.sort((a, b) => a - b);
+  return days;
+}
+
+export function daysToMask(days: number[]): number {
+  const mask = normalizeDays(days).reduce((value, day) => value | (1 << day), 0);
+  return mask === 0 ? 127 : mask;
+}
+
+export function templatesForDay<T extends { days: number[] }>(templates: T[], dayOfWeek: number): T[] {
+  return templates.filter((template) => template.days.includes(dayOfWeek));
+}
+
+export function slotCount(templates: { days: number[] }[]): number {
+  return templates.reduce((total, template) => total + template.days.length, 0);
+}
+
+export function formatDays(days: number[]): string {
+  const normalized = normalizeDays(days);
+  if (normalized.length === 7) return "כל השבוע";
+  if (normalized.join() === WEEKDAY_DAYS.join()) return "א׳–ה׳";
+  if (normalized.join() === WEEKEND_DAYS.join()) return "ו׳–ש׳";
+  return normalized.map((day) => DAY_SHORT[day]).join(" · ");
+}
+
 export function formatDayDate(weekStart: string, dayOfWeek: number): string {
   const [y, m, d] = weekStart.split("-").map(Number);
   const day = addDays(y, m, d, dayOfWeek);

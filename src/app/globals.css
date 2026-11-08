@@ -202,15 +202,85 @@ select {
   gap: 8px;
 }
 
-.board-desktop {
-  display: grid;
-  grid-template-columns: 120px repeat(var(--slots, 3), minmax(0, 1fr));
-  gap: 10px 12px;
-  align-items: stretch;
+.board-days {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.board-mobile {
-  display: none;
+.day-card {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.day-card.is-today {
+  border-color: var(--accent);
+}
+
+.day-card-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.day-card-head strong {
+  font-size: 16px;
+}
+
+.day-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.slot-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.slot-meta strong {
+  display: block;
+}
+
+.template-block {
+  margin-bottom: 10px;
+}
+
+.template-block .row {
+  margin-bottom: 6px;
+}
+
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px 8px;
+}
+
+.day-chip {
+  min-width: 40px;
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.day-chip.on {
+  background: var(--brown);
+  color: #fff;
+  border-color: var(--brown);
 }
 
 .board-head,
@@ -448,31 +518,19 @@ input[type="time"] {
   .week-nav button {
     min-height: 44px;
   }
-  .board-desktop {
-    display: none;
-  }
-  .board-mobile {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
   .day-card {
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: 16px;
+    grid-template-columns: 1fr;
     padding: 12px;
   }
-  .day-card.is-today {
-    border-color: var(--accent);
-  }
   .day-card-head {
-    display: flex;
+    flex-direction: row;
     align-items: center;
     gap: 8px;
-    margin-bottom: 10px;
   }
-  .day-card-head strong {
-    font-size: 16px;
+  .day-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
   .slot-row {
     display: grid;
@@ -484,9 +542,6 @@ input[type="time"] {
   }
   .slot-meta {
     padding-top: 10px;
-  }
-  .slot-meta strong {
-    display: block;
   }
   .slot,
   .slot-empty,

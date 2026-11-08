@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Chrome } from "./Chrome";
 import { useAppState } from "./useAppState";
+import { DAY_SHORT, formatDays } from "@/lib/week";
 
 export function ManagePanel() {
   const { state, error, mutate } = useAppState(null);
@@ -10,6 +11,7 @@ export function ManagePanel() {
   const [templateName, setTemplateName] = useState("");
   const [templateStart, setTemplateStart] = useState("07:00");
   const [templateEnd, setTemplateEnd] = useState("15:00");
+  const [templateDays, setTemplateDays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [inviteWatcher, setInviteWatcher] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
   const [rename, setRename] = useState<Record<string, string>>({});
@@ -97,84 +99,117 @@ export function ManagePanel() {
 
         <section className="card">
           <h2 className="section-title">תבניות משמרות</h2>
-          <p className="hint">ברירת המחדל היא בוקר, צהריים ולילה. אפשר לשנות שמות ושעות, או להוסיף משמרת.</p>
+          <p className="hint">
+            בחרו באילו ימים כל משמרת מופיעה. ברירת המחדל: בוקר, צהריים ולילה בימים א׳–ה׳, ומשמרת יממה בשישי ושבת.
+          </p>
           {state.templates.map((t) => (
-            <div className="row" key={t.id}>
-              {state.me.isAdmin ? (
-                <>
-                  <input
-                    value={rename[t.id] ?? t.name}
-                    onChange={(e) => setRename((r) => ({ ...r, [t.id]: e.target.value }))}
-                    onBlur={() => {
-                      const name = (rename[t.id] ?? t.name).trim();
-                      if (name && name !== t.name) {
-                        void mutate({ type: "updateTemplate", id: t.id, name });
+            <div className="template-block" key={t.id}>
+              <div className="row">
+                {state.me.isAdmin ? (
+                  <>
+                    <input
+                      value={rename[t.id] ?? t.name}
+                      onChange={(e) => setRename((r) => ({ ...r, [t.id]: e.target.value }))}
+                      onBlur={() => {
+                        const name = (rename[t.id] ?? t.name).trim();
+                        if (name && name !== t.name) {
+                          void mutate({ type: "updateTemplate", id: t.id, name });
+                        }
+                      }}
+                    />
+                    <input
+                      className="hours"
+                      defaultValue={t.startTime}
+                      onBlur={(e) =>
+                        void mutate({ type: "updateTemplate", id: t.id, startTime: e.target.value })
                       }
-                    }}
-                  />
-                  <input
-                    className="hours"
-                    defaultValue={t.startTime}
-                    onBlur={(e) =>
-                      void mutate({ type: "updateTemplate", id: t.id, startTime: e.target.value })
-                    }
-                  />
-                  <input
-                    className="hours"
-                    defaultValue={t.endTime}
-                    onBlur={(e) =>
-                      void mutate({ type: "updateTemplate", id: t.id, endTime: e.target.value })
-                    }
-                  />
-                  <button
-                    className="danger"
-                    type="button"
-                    onClick={() => void mutate({ type: "removeTemplate", id: t.id })}
-                  >
-                    מחיקה
-                  </button>
-                </>
-              ) : (
-                <>
-                  <strong className="grow">{t.name}</strong>
-                  <span className="hours">
-                    {t.startTime}–{t.endTime}
-                  </span>
-                </>
-              )}
+                    />
+                    <input
+                      className="hours"
+                      defaultValue={t.endTime}
+                      onBlur={(e) =>
+                        void mutate({ type: "updateTemplate", id: t.id, endTime: e.target.value })
+                      }
+                    />
+                    <button
+                      className="danger"
+                      type="button"
+                      onClick={() => void mutate({ type: "removeTemplate", id: t.id })}
+                    >
+                      מחיקה
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <strong className="grow">{t.name}</strong>
+                    <span className="hours">
+                      {t.startTime}–{t.endTime}
+                    </span>
+                    <span className="hint" style={{ margin: 0 }}>
+                      {formatDays(t.days)}
+                    </span>
+                  </>
+                )}
+              </div>
+              {state.me.isAdmin ? (
+                <DayChips
+                  days={t.days}
+                  onToggle={(day) => {
+                    const next = t.days.includes(day)
+                      ? t.days.filter((item) => item !== day)
+                      : [...t.days, day].sort((a, b) => a - b);
+                    if (next.length === 0) return;
+                    void mutate({ type: "updateTemplate", id: t.id, days: next });
+                  }}
+                />
+              ) : null}
             </div>
           ))}
           {state.me.isAdmin ? (
-            <div className="row">
-              <input
-                placeholder="שם משמרת חדשה"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
+            <div className="template-block">
+              <div className="row">
+                <input
+                  placeholder="שם משמרת חדשה"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                />
+                <input
+                  className="hours"
+                  value={templateStart}
+                  onChange={(e) => setTemplateStart(e.target.value)}
+                />
+                <input
+                  className="hours"
+                  value={templateEnd}
+                  onChange={(e) => setTemplateEnd(e.target.value)}
+                />
+                <button
+                  className="primary"
+                  type="button"
+                  onClick={() => {
+                    void mutate({
+                      type: "addTemplate",
+                      name: templateName,
+                      startTime: templateStart,
+                      endTime: templateEnd,
+                      days: templateDays,
+                    }).then(() => setTemplateName(""));
+                  }}
+                >
+                  הוספת משמרת
+                </button>
+              </div>
+              <DayChips
+                days={templateDays}
+                onToggle={(day) =>
+                  setTemplateDays((current) => {
+                    const next = current.includes(day)
+                      ? current.filter((item) => item !== day)
+                      : [...current, day].sort((a, b) => a - b);
+                    return next.length === 0 ? current : next;
+                  })
+                }
               />
-              <input
-                className="hours"
-                value={templateStart}
-                onChange={(e) => setTemplateStart(e.target.value)}
-              />
-              <input
-                className="hours"
-                value={templateEnd}
-                onChange={(e) => setTemplateEnd(e.target.value)}
-              />
-              <button
-                className="primary"
-                type="button"
-                onClick={() => {
-                  void mutate({
-                    type: "addTemplate",
-                    name: templateName,
-                    startTime: templateStart,
-                    endTime: templateEnd,
-                  }).then(() => setTemplateName(""));
-                }}
-              >
-                הוספת משמרת
-              </button>
             </div>
           ) : null}
         </section>
@@ -319,5 +354,32 @@ export function ManagePanel() {
 
       </div>
     </Chrome>
+  );
+}
+
+function DayChips({
+  days,
+  onToggle,
+}: {
+  days: number[];
+  onToggle: (day: number) => void;
+}) {
+  return (
+    <div className="day-chips" role="group" aria-label="ימי המשמרת">
+      {DAY_SHORT.map((label, day) => {
+        const on = days.includes(day);
+        return (
+          <button
+            key={label}
+            type="button"
+            className={on ? "day-chip on" : "day-chip"}
+            aria-pressed={on}
+            onClick={() => onToggle(day)}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

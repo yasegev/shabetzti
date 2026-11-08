@@ -3,15 +3,21 @@
 import { useMemo, useState } from "react";
 import { Chrome } from "./Chrome";
 import { useAppState } from "./useAppState";
-import { DAY_NAMES, formatDayDate, formatWeekRange, isToday, shiftWeek } from "@/lib/week";
+import {
+  DAY_NAMES,
+  formatDayDate,
+  formatWeekRange,
+  isToday,
+  shiftWeek,
+  slotCount,
+  templatesForDay,
+} from "@/lib/week";
+import type { Template } from "@/lib/types";
 
 export function WeeklyBoard({ initialWeek }: { initialWeek: string }) {
   const [week, setWeek] = useState(initialWeek);
   const { state, error, loading, mutate } = useAppState(week);
   const [open, setOpen] = useState<string | null>(null);
-
-  const assignedCount = state?.assignments.length ?? 0;
-  const totalSlots = (state?.templates.length ?? 0) * 7;
 
   const byKey = useMemo(() => {
     const map = new Map<string, string>();
@@ -28,6 +34,12 @@ export function WeeklyBoard({ initialWeek }: { initialWeek: string }) {
       </div>
     );
   }
+
+  const totalSlots = slotCount(state.templates);
+  const assignedCount = state.assignments.filter((assignment) => {
+    const template = state.templates.find((item) => item.id === assignment.templateId);
+    return Boolean(template?.days.includes(assignment.dayOfWeek));
+  }).length;
 
   const assign = (dayOfWeek: number, templateId: string, watcherId: string | null) => {
     setOpen(null);
@@ -64,24 +76,15 @@ export function WeeklyBoard({ initialWeek }: { initialWeek: string }) {
           </div>
         </div>
 
-        <div className="board-desktop" style={{ ["--slots" as string]: String(state.templates.length) }}>
-          <div className="board-head">יום</div>
-          {state.templates.map((t) => (
-            <div className="board-head" key={t.id}>
-              <strong>{t.name}</strong>
-              <span className="hours">
-                {t.startTime}–{t.endTime}
-              </span>
-            </div>
-          ))}
+        <div className="board-days">
           {DAY_NAMES.map((day, dayOfWeek) => (
-            <DayRow
+            <DayCard
               key={day}
               day={day}
               dayOfWeek={dayOfWeek}
               week={week}
               today={isToday(week, dayOfWeek)}
-              templates={state.templates}
+              templates={templatesForDay(state.templates, dayOfWeek)}
               watchers={state.watchers}
               byKey={byKey}
               open={open}
@@ -90,45 +93,12 @@ export function WeeklyBoard({ initialWeek }: { initialWeek: string }) {
             />
           ))}
         </div>
-
-        <div className="board-mobile">
-          {DAY_NAMES.map((day, dayOfWeek) => (
-            <article className={`day-card${isToday(week, dayOfWeek) ? " is-today" : ""}`} key={day}>
-              <header className="day-card-head">
-                <strong>{day}</strong>
-                <span>{formatDayDate(week, dayOfWeek)}</span>
-                {isToday(week, dayOfWeek) ? <span className="today-chip">היום</span> : null}
-              </header>
-              {state.templates.map((t) => {
-                const key = `${dayOfWeek}:${t.id}`;
-                return (
-                  <div className="slot-row" key={t.id}>
-                    <div className="slot-meta">
-                      <strong>{t.name}</strong>
-                      <span className="hours">
-                        {t.startTime}–{t.endTime}
-                      </span>
-                    </div>
-                    <SlotPicker
-                      slotKey={key}
-                      watcherId={byKey.get(key) ?? null}
-                      watchers={state.watchers}
-                      open={open}
-                      setOpen={setOpen}
-                      onAssign={(watcherId) => assign(dayOfWeek, t.id, watcherId)}
-                    />
-                  </div>
-                );
-              })}
-            </article>
-          ))}
-        </div>
       </section>
     </Chrome>
   );
 }
 
-function DayRow({
+function DayCard({
   day,
   dayOfWeek,
   week,
@@ -144,7 +114,7 @@ function DayRow({
   dayOfWeek: number;
   week: string;
   today: boolean;
-  templates: { id: string; name: string }[];
+  templates: Template[];
   watchers: { id: string; name: string; color: string }[];
   byKey: Map<string, string>;
   open: string | null;
@@ -152,27 +122,40 @@ function DayRow({
   onAssign: (templateId: string, watcherId: string | null) => void;
 }) {
   return (
-    <>
-      <div className="day-label">
+    <article className={`day-card${today ? " is-today" : ""}`}>
+      <header className="day-card-head">
         <strong>{day}</strong>
         <span>{formatDayDate(week, dayOfWeek)}</span>
-        {today ? <div className="today-chip">היום</div> : null}
+        {today ? <span className="today-chip">היום</span> : null}
+      </header>
+      <div className="day-slots">
+        {templates.length === 0 ? (
+          <p className="hint">אין משמרות ביום הזה</p>
+        ) : (
+          templates.map((template) => {
+            const key = `${dayOfWeek}:${template.id}`;
+            return (
+              <div className="slot-row" key={template.id}>
+                <div className="slot-meta">
+                  <strong>{template.name}</strong>
+                  <span className="hours">
+                    {template.startTime}–{template.endTime}
+                  </span>
+                </div>
+                <SlotPicker
+                  slotKey={key}
+                  watcherId={byKey.get(key) ?? null}
+                  watchers={watchers}
+                  open={open}
+                  setOpen={setOpen}
+                  onAssign={(watcherId) => onAssign(template.id, watcherId)}
+                />
+              </div>
+            );
+          })
+        )}
       </div>
-      {templates.map((t) => {
-        const key = `${dayOfWeek}:${t.id}`;
-        return (
-          <SlotPicker
-            key={t.id}
-            slotKey={key}
-            watcherId={byKey.get(key) ?? null}
-            watchers={watchers}
-            open={open}
-            setOpen={setOpen}
-            onAssign={(watcherId) => onAssign(t.id, watcherId)}
-          />
-        );
-      })}
-    </>
+    </article>
   );
 }
 

@@ -21,9 +21,10 @@ export function MyShifts({ initialWeek }: { initialWeek: string }) {
     for (const bundle of [current.state, next.state, after.state]) {
       if (!bundle) continue;
       for (const a of bundle.assignments) {
-        if (a.watcherId === state.me.watcherId) {
-          all.push({ weekStart: bundle.weekStart, assignment: a });
-        }
+        if (a.watcherId !== state.me.watcherId) continue;
+        const template = bundle.templates.find((item) => item.id === a.templateId);
+        if (template && !template.days.includes(a.dayOfWeek)) continue;
+        all.push({ weekStart: bundle.weekStart, assignment: a });
       }
     }
     return all.sort(

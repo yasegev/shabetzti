@@ -25,8 +25,8 @@ type Action =
   | { type: "renameWatcher"; id: string; name: string }
   | { type: "removeWatcher"; id: string }
   | { type: "claimWatcher"; watcherId: string | null }
-  | { type: "updateTemplate"; id: string; name?: string; startTime?: string; endTime?: string }
-  | { type: "addTemplate"; name: string; startTime: string; endTime: string }
+  | { type: "updateTemplate"; id: string; name?: string; startTime?: string; endTime?: string; days?: number[] }
+  | { type: "addTemplate"; name: string; startTime: string; endTime: string; days?: number[] }
   | { type: "removeTemplate"; id: string }
   | { type: "assignSlot"; weekStart: string; dayOfWeek: number; templateId: string; watcherId: string | null }
   | { type: "createInvite"; watcherId?: string | null }
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       case "addTemplate":
         if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });
         return Response.json({
-          template: await addTemplate(body.name, body.startTime, body.endTime),
+          template: await addTemplate(body.name, body.startTime, body.endTime, body.days),
         });
       case "removeTemplate":
         if (!admin) return Response.json({ error: "forbidden" }, { status: 403 });

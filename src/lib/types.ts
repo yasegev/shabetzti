@@ -11,6 +11,7 @@ export type Template = {
   startTime: string;
   endTime: string;
   sortOrder: number;
+  days: number[];
 };
 
 export type Assignment = {

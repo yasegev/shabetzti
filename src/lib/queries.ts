@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { sql } from "./db";
 import { WATCHER_COLORS } from "./auth-mode";
 import { runtimeEnv } from "./env";
+import { daysToMask, normalizeDays } from "./week";
 import type { Assignment, Invite, Member, Template, Watcher } from "./types";
 
 type UserRow = {
@@ -20,6 +21,7 @@ type TemplateRow = {
   start_time: string;
   end_time: string;
   sort_order: number;
+  days_mask: number | null;
 };
 type AssignmentRow = {
   id: string;
@@ -47,6 +49,20 @@ function asIso(value: string | Date | null): string | null {
   if (!value) return null;
   if (typeof value === "string") return value;
   return value.toISOString();
+}
+
+function templateFrom(row: TemplateRow): Template {
+  return {
+    id: row.id,
+    name: row.name,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    sortOrder: row.sort_order,
+    days: (() => {
+      const days = normalizeDays(Number(row.days_mask ?? 127));
+      return days.length > 0 ? days : [0, 1, 2, 3, 4, 5, 6];
+    })(),
+  };
 }
 
 function memberFrom(row: UserRow): Member {
@@ -171,13 +187,12 @@ export async function listWatchers(): Promise<Watcher[]> {
 
 export async function listTemplates(): Promise<Template[]> {
   const rows = await sql<TemplateRow>("select * from shift_templates order by sort_order, name");
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    startTime: r.start_time,
-    endTime: r.end_time,
-    sortOrder: r.sort_order,
-  }));
+  return rows.map(templateFrom);
+}
+
+export async function getTemplate(id: string): Promise<Template | null> {
+  const rows = await sql<TemplateRow>("select * from shift_templates where id = $1", [id]);
+  return rows[0] ? templateFrom(rows[0]) : null;
 }
 
 export async function listAssignments(weekStart: string): Promise<Assignment[]> {
@@ -260,7 +275,7 @@ export async function removeWatcher(id: string): Promise<void> {
 
 export async function updateTemplate(
   id: string,
-  fields: { name?: string; startTime?: string; endTime?: string },
+  fields: { name?: string; startTime?: string; endTime?: string; days?: number[] },
 ): Promise<void> {
   if (fields.name != null) {
     await sql("update shift_templates set name = $2 where id = $1", [id, fields.name.trim()]);
@@ -271,26 +286,30 @@ export async function updateTemplate(
   if (fields.endTime != null) {
     await sql("update shift_templates set end_time = $2 where id = $1", [id, fields.endTime]);
   }
+  if (fields.days != null) {
+    const days = normalizeDays(fields.days);
+    if (days.length === 0) throw new Error("invalid");
+    await sql("update shift_templates set days_mask = $2 where id = $1", [id, daysToMask(days)]);
+  }
 }
 
-export async function addTemplate(name: string, startTime: string, endTime: string): Promise<Template> {
+export async function addTemplate(
+  name: string,
+  startTime: string,
+  endTime: string,
+  days?: number[],
+): Promise<Template> {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("name-required");
   const existing = await listTemplates();
   const id = crypto.randomUUID();
+  const mask = daysToMask(days ?? [0, 1, 2, 3, 4, 5, 6]);
   const rows = await sql<TemplateRow>(
-    `insert into shift_templates (id, name, start_time, end_time, sort_order)
-     values ($1, $2, $3, $4, $5) returning *`,
-    [id, trimmed, startTime, endTime, existing.length],
+    `insert into shift_templates (id, name, start_time, end_time, sort_order, days_mask)
+     values ($1, $2, $3, $4, $5, $6) returning *`,
+    [id, trimmed, startTime, endTime, existing.length, mask],
   );
-  const r = rows[0];
-  return {
-    id: r.id,
-    name: r.name,
-    startTime: r.start_time,
-    endTime: r.end_time,
-    sortOrder: r.sort_order,
-  };
+  return templateFrom(rows[0]);
 }
 
 export async function removeTemplate(id: string): Promise<void> {
@@ -308,6 +327,11 @@ export async function assignSlot(
   }
   const year = Number(weekStart.slice(0, 4));
   if (year < 2024 || year > 2032) {
+    throw new Error("invalid");
+  }
+  const template = await getTemplate(templateId);
+  if (!template) throw new Error("invalid");
+  if (watcherId != null && !template.days.includes(dayOfWeek)) {
     throw new Error("invalid");
   }
   if (watcherId == null) {
