@@ -1,0 +1,29 @@
+import { runtimeEnv } from "./env";
+
+export const LIVE_ORIGIN = "https://shabetzti.apps.grok.bot";
+export const LIVE_HOST = "shabetzti.apps.grok.bot";
+
+export function googleConfigured(): boolean {
+  return Boolean(runtimeEnv("GOOGLE_CLIENT_ID") && runtimeEnv("GOOGLE_CLIENT_SECRET"));
+}
+
+export function isPublishedHost(): boolean {
+  return Boolean(runtimeEnv("CURSOR_APP_ID") || runtimeEnv("VERCEL"));
+}
+
+export function isDevLoginEnabled(): boolean {
+  if (process.env.NODE_ENV === "production") return false;
+  if (isPublishedHost()) return false;
+  return runtimeEnv("AUTH_ALLOW_DEV_LOGIN") === "true";
+}
+
+export const WATCHER_COLORS = [
+  "#2f6f4e",
+  "#3d5a80",
+  "#b0892e",
+  "#9b4d6a",
+  "#4a6fa5",
+  "#6b4f3b",
+  "#5c7a5a",
+  "#8c4a32",
+];
