@@ -306,6 +306,10 @@ export async function assignSlot(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart) || dayOfWeek < 0 || dayOfWeek > 6) {
     throw new Error("invalid");
   }
+  const year = Number(weekStart.slice(0, 4));
+  if (year < 2024 || year > 2032) {
+    throw new Error("invalid");
+  }
   if (watcherId == null) {
     await sql(
       "delete from assignments where week_start = $1::date and day_of_week = $2 and template_id = $3",

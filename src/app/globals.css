@@ -202,11 +202,15 @@ select {
   gap: 8px;
 }
 
-.board {
+.board-desktop {
   display: grid;
   grid-template-columns: 120px repeat(var(--slots, 3), minmax(0, 1fr));
   gap: 10px 12px;
   align-items: stretch;
+}
+
+.board-mobile {
+  display: none;
 }
 
 .board-head,
@@ -416,11 +420,103 @@ input[type="time"] {
   .top {
     flex-direction: column;
   }
-  .board {
-    grid-template-columns: 88px repeat(var(--slots, 3), minmax(140px, 1fr));
-    overflow-x: auto;
+  .nav,
+  .nav-pills,
+  .who {
+    width: 100%;
+  }
+  .nav-pills {
+    justify-content: space-between;
+  }
+  .nav-pills a {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    font-size: 14px;
   }
   .app {
     padding: 16px 12px 48px;
+  }
+  .week-head {
+    flex-direction: column;
+  }
+  .week-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .week-head > button,
+  .week-nav button {
+    min-height: 44px;
+  }
+  .board-desktop {
+    display: none;
+  }
+  .board-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .day-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 12px;
+  }
+  .day-card.is-today {
+    border-color: var(--accent);
+  }
+  .day-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .day-card-head strong {
+    font-size: 16px;
+  }
+  .slot-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 8px;
+    align-items: start;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+  }
+  .slot-meta {
+    padding-top: 10px;
+  }
+  .slot-meta strong {
+    display: block;
+  }
+  .slot,
+  .slot-empty,
+  .ghost,
+  .primary,
+  .soft {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .picker-menu {
+    position: static;
+    width: 100%;
+    margin-top: 8px;
+    min-width: 0;
+  }
+  .picker-menu button {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .row {
+    align-items: stretch;
+  }
+  .row button {
+    min-height: 44px;
+  }
+  .copy-box {
+    flex-wrap: wrap;
+  }
+  .copy-box input {
+    min-width: 0;
+    width: 100%;
   }
 }

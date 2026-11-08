@@ -1,5 +1,8 @@
 import { runtimeEnv } from "./env";
 
+export const LIVE_ORIGIN = "https://shabetzti.apps.grok.bot";
+export const LIVE_HOST = "shabetzti.apps.grok.bot";
+
 export function googleConfigured(): boolean {
   return Boolean(runtimeEnv("GOOGLE_CLIENT_ID") && runtimeEnv("GOOGLE_CLIENT_SECRET"));
 }

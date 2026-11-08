@@ -34,6 +34,7 @@ export function useAppState(week: string | null) {
       setError(null);
       const res = await fetch("/api/mutate", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });

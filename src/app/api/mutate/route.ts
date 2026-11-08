@@ -1,11 +1,14 @@
 import { safeAuth } from "@/auth";
+import { LIVE_HOST } from "@/lib/auth-mode";
 import {
   addTemplate,
   addWatcher,
   assignSlot,
   claimWatcher,
   createInvite,
+  ensureAllowlistedAdmin,
   getUserByGoogleSub,
+  isAllowlistedAdminEmail,
   setMemberAdmin,
   removeTemplate,
   removeWatcher,
@@ -30,15 +33,35 @@ type Action =
   | { type: "revokeInvite"; id: string }
   | { type: "setMemberAdmin"; userId: string; isAdmin: boolean };
 
+function headerHosts(request: Request): string[] {
+  const values = [
+    request.headers.get("x-forwarded-host"),
+    request.headers.get("host"),
+  ];
+  try {
+    values.push(new URL(request.url).host);
+  } catch {
+    /* ignore */
+  }
+  return values
+    .flatMap((value) => (value ?? "").split(","))
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 function sameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return true;
   try {
-    const req = new URL(request.url);
     const orig = new URL(origin);
-    if (orig.host === req.host) return true;
+    const origHost = orig.host.toLowerCase();
+    const allowed = new Set([...headerHosts(request), LIVE_HOST, `www.${LIVE_HOST}`]);
+    if (allowed.has(origHost)) return true;
     const loopback = new Set(["localhost", "127.0.0.1"]);
-    return orig.port === req.port && loopback.has(orig.hostname) && loopback.has(req.hostname);
+    return [...allowed].some((host) => {
+      const hostname = host.split(":")[0];
+      return loopback.has(orig.hostname) && loopback.has(hostname);
+    });
   } catch {
     return false;
   }
@@ -52,17 +75,31 @@ export async function POST(request: Request) {
   if (!session?.user?.googleSub) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  const me = await getUserByGoogleSub(session.user.googleSub);
-  if (!me) {
+  const member =
+    (await getUserByGoogleSub(session.user.googleSub)) ??
+    (await ensureAllowlistedAdmin({
+      googleSub: session.user.googleSub,
+      email: session.user.email,
+      name: session.user.name,
+    }));
+  if (!member) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
+  const me =
+    member.isAdmin || !isAllowlistedAdminEmail(member.email)
+      ? member
+      : (await ensureAllowlistedAdmin({
+          googleSub: session.user.googleSub,
+          email: member.email,
+          name: member.name,
+        })) ?? member;
   let body: Action;
   try {
     body = (await request.json()) as Action;
   } catch {
     return Response.json({ error: "invalid-json" }, { status: 400 });
   }
-  const admin = me.isAdmin;
+  const admin = me.isAdmin || isAllowlistedAdminEmail(me.email);
   try {
     switch (body.type) {
       case "addWatcher":

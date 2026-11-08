@@ -181,6 +181,109 @@ export function ManagePanel() {
 
         {state.me.isAdmin ? (
           <section className="card">
+            <h2 className="section-title">הזמנות לבני משפחה</h2>
+            <p className="hint">
+              יצירת קישור, העתקה, ושליחה ב-WhatsApp או בהודעה. מי שפותח את הקישור נכנס עם Google ומצטרף.
+            </p>
+            <div className="row">
+              <select
+                className="grow"
+                value={inviteWatcher}
+                onChange={(e) => setInviteWatcher(e.target.value)}
+              >
+                <option value="">בלי שיוך לתורן</option>
+                {state.watchers.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    שייך אל {w.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="primary"
+                type="button"
+                data-testid="create-invite"
+                onClick={async () => {
+                  const data = (await mutate({
+                    type: "createInvite",
+                    watcherId: inviteWatcher || null,
+                  })) as { invite?: { token: string } } | null;
+                  const token = data?.invite?.token;
+                  if (token) setCopied(`${origin}/invite/${token}`);
+                }}
+              >
+                יצירת קישור הזמנה
+              </button>
+            </div>
+            {copied ? (
+              <div className="copy-box">
+                <input
+                  data-testid="invite-url"
+                  readOnly
+                  value={copied}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => {
+                    const input = document.querySelector<HTMLInputElement>("[data-testid=invite-url]");
+                    input?.select();
+                    void navigator.clipboard?.writeText(copied).catch(() => undefined);
+                  }}
+                >
+                  העתקה
+                </button>
+                {typeof navigator !== "undefined" && "share" in navigator ? (
+                  <button
+                    className="primary"
+                    type="button"
+                    onClick={() =>
+                      void navigator.share({ title: "הזמנה לשבצתי", url: copied, text: copied })
+                    }
+                  >
+                    שיתוף
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {state.invites.map((inv) => {
+              const url = `${origin}/invite/${inv.token}`;
+              const watcher = state.watchers.find((w) => w.id === inv.watcherId);
+              return (
+                <div className="row" key={inv.id}>
+                  <div className="grow">
+                    <div>{inv.usedAt ? "נוצל" : "ממתין"}{watcher ? ` · ${watcher.name}` : ""}</div>
+                    <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
+                  </div>
+                  {!inv.usedAt ? (
+                    <>
+                      <button
+                        className="ghost"
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard?.writeText(url).catch(() => undefined);
+                          setCopied(url);
+                        }}
+                      >
+                        העתקה
+                      </button>
+                      <button
+                        className="danger"
+                        type="button"
+                        onClick={() => void mutate({ type: "revokeInvite", id: inv.id })}
+                      >
+                        ביטול
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              );
+            })}
+          </section>
+        ) : null}
+
+        {state.me.isAdmin ? (
+          <section className="card">
             <h2 className="section-title">מנהלים ובני משפחה</h2>
             <p className="hint">
               אפשר שיהיו כמה מנהלים. הזמינו בן משפחה, ואחרי שהוא מצטרף לחצו «הפוך למנהל». אפשר גם להוסיף כתובת ל-ADMIN_EMAIL ב-Cursor.
@@ -214,84 +317,6 @@ export function ManagePanel() {
           </section>
         ) : null}
 
-        {state.me.isAdmin ? (
-          <section className="card">
-            <h2 className="section-title">הזמנות</h2>
-            <p className="hint">
-              אין הרשמה פתוחה. העתיקו קישור הזמנה ושלחו לבן משפחה. הוא נכנס עם Google ומצטרף למשפחה.
-            </p>
-            <div className="row">
-              <select
-                className="grow"
-                value={inviteWatcher}
-                onChange={(e) => setInviteWatcher(e.target.value)}
-              >
-                <option value="">בלי שיוך לתורן</option>
-                {state.watchers.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    שייך אל {w.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="primary"
-                type="button"
-                data-testid="create-invite"
-                onClick={async () => {
-                  const data = (await mutate({
-                    type: "createInvite",
-                    watcherId: inviteWatcher || null,
-                  })) as { invite?: { token: string } } | null;
-                  const token = data?.invite?.token;
-                  if (token) {
-                    const url = `${origin}/invite/${token}`;
-                    try {
-                      await navigator.clipboard.writeText(url);
-                      setCopied(url);
-                    } catch {
-                      setCopied(url);
-                    }
-                  }
-                }}
-              >
-                יצירת קישור הזמנה
-              </button>
-            </div>
-            {copied ? (
-              <div className="copy-box">
-                <input data-testid="invite-url" readOnly value={copied} />
-                <button
-                  className="ghost"
-                  type="button"
-                  onClick={() => void navigator.clipboard.writeText(copied)}
-                >
-                  העתקה
-                </button>
-              </div>
-            ) : null}
-            {state.invites.map((inv) => {
-              const url = `${origin}/invite/${inv.token}`;
-              const watcher = state.watchers.find((w) => w.id === inv.watcherId);
-              return (
-                <div className="row" key={inv.id}>
-                  <div className="grow">
-                    <div>{inv.usedAt ? "נוצל" : "ממתין"}{watcher ? ` · ${watcher.name}` : ""}</div>
-                    <input readOnly value={url} />
-                  </div>
-                  {!inv.usedAt ? (
-                    <button
-                      className="danger"
-                      type="button"
-                      onClick={() => void mutate({ type: "revokeInvite", id: inv.id })}
-                    >
-                      ביטול
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
-          </section>
-        ) : null}
       </div>
     </Chrome>
   );

@@ -1,7 +1,9 @@
 import { safeAuth } from "@/auth";
 import { googleConfigured, isDevLoginEnabled } from "@/lib/auth-mode";
 import {
+  ensureAllowlistedAdmin,
   getUserByGoogleSub,
+  isAllowlistedAdminEmail,
   listAssignments,
   listInvites,
   listMembers,
@@ -21,21 +23,37 @@ export async function GET(request: Request) {
       { status: 401, headers: { "cache-control": "private, no-store" } },
     );
   }
-  const me = await getUserByGoogleSub(session.user.googleSub);
+  let me = await getUserByGoogleSub(session.user.googleSub);
+  if (!me) {
+    me = await ensureAllowlistedAdmin({
+      googleSub: session.user.googleSub,
+      email: session.user.email,
+      name: session.user.name,
+    });
+  } else if (!me.isAdmin && isAllowlistedAdminEmail(me.email)) {
+    me =
+      (await ensureAllowlistedAdmin({
+        googleSub: session.user.googleSub,
+        email: me.email,
+        name: me.name,
+      })) ?? { ...me, isAdmin: true };
+  }
   if (!me) {
     return Response.json(
       { error: "unauthorized", pending: true },
       { status: 401, headers: { "cache-control": "private, no-store" } },
     );
   }
+  const admin = me.isAdmin || isAllowlistedAdminEmail(me.email);
+  me = admin ? { ...me, isAdmin: true } : me;
   const url = new URL(request.url);
   const weekStart = parseWeekStart(url.searchParams.get("week"));
   const [watchers, templates, assignments, invites, members] = await Promise.all([
     listWatchers(),
     listTemplates(),
     listAssignments(weekStart),
-    me.isAdmin ? listInvites() : Promise.resolve([]),
-    me.isAdmin ? listMembers() : Promise.resolve([]),
+    admin ? listInvites() : Promise.resolve([]),
+    admin ? listMembers() : Promise.resolve([]),
   ]);
   return Response.json(
     {

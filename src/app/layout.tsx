@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Assistant } from "next/font/google";
 import "./globals.css";
 
@@ -10,6 +10,11 @@ const assistant = Assistant({
 export const metadata: Metadata = {
   title: "שבצתי",
   description: "לוח משמרות משפחתי לטיפול בבית",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

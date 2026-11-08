@@ -1,5 +1,5 @@
-import { devSignIn } from "@/app/auth-actions";
 import { GoogleButton } from "./google-button";
+import { MockLoginForm } from "./mock-login";
 
 const ERRORS: Record<string, string> = {
   invite: "הגישה בהזמנה בלבד. בקשו מקישור הזמנה ממנהל המשפחה.",
@@ -51,18 +51,7 @@ export function LoginForm({
             <p className="hours">GOOGLE_CLIENT_ID · GOOGLE_CLIENT_SECRET · AUTH_SECRET</p>
           </>
         )}
-        {dev ? (
-          <form action={devSignIn}>
-            <p className="banner">מצב מקומי: כניסת Google מדומה לצורך בדיקה (נתוני דוגמה).</p>
-            <input type="hidden" name="invite" value={invite ?? ""} />
-            <input type="hidden" name="redirectTo" value={redirectTo} />
-            <input name="name" placeholder="שם" required />
-            <input name="email" type="email" placeholder="אימייל" required />
-            <button className="primary" type="submit">
-              כניסה מדומה
-            </button>
-          </form>
-        ) : null}
+        {dev ? <MockLoginForm invite={invite} redirectTo={redirectTo} /> : null}
         {!google && !dev ? (
           <p className="error">
             עדיין אין פרטי Google. הוסיפו אותם ב-Cursor ואז הכניסה למשפחה תעבוד מהטלפון.

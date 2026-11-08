@@ -2,15 +2,14 @@ import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { googleConfigured, isDevLoginEnabled, isPublishedHost } from "./lib/auth-mode";
+import { googleConfigured, isDevLoginEnabled, isPublishedHost, LIVE_ORIGIN } from "./lib/auth-mode";
 import { runtimeEnv } from "./lib/env";
 import { consumeInvite, ensureAllowlistedAdmin } from "./lib/queries";
 
-const LIVE_ORIGIN = "https://shabetzti.apps.grok.bot";
-
 function logAuth(scope: string, error: unknown) {
   const name = error instanceof Error ? error.name : "error";
-  console.error(`[shabetzti:${scope}]`, name);
+  const message = error instanceof Error ? error.message : "";
+  console.error(`[shabetzti:${scope}]`, name, message);
 }
 
 function isNextInternalError(error: unknown): boolean {
